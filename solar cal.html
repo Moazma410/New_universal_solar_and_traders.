@@ -180,6 +180,13 @@
             align-items: start;
         }
 
+        /* High Voltage combinations need more room than a 1fr/1fr split gives
+           them — the form side stays compact, the results side (where the
+           combination cards live) gets the rest. */
+        #hvContent {
+            grid-template-columns: 340px 1fr;
+        }
+
         /* Form Styling */
         .form-section {
             background: white;
@@ -876,13 +883,13 @@
 
         /* Type Selector Screen */
         .type-selector {
-            max-width: 700px;
+            max-width: 980px;
             margin: 0 auto;
         }
 
         .type-cards {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, 1fr);
             gap: 24px;
         }
 
@@ -945,6 +952,12 @@
             letter-spacing: 0.5px;
             margin-left: 10px;
             vertical-align: middle;
+        }
+
+        @media (max-width: 900px) and (min-width: 601px) {
+            .type-cards {
+                grid-template-columns: 1fr 1fr;
+            }
         }
 
         @media (max-width: 600px) {
@@ -1426,6 +1439,117 @@
                     <div class="type-icon">🏠</div>
                     <h3>Residential</h3>
                     <p>For homes. Pick your appliances and we calculate your load.</p>
+                </div>
+                <div class="type-card" onclick="selectSystemType('highvoltage')">
+                    <div class="type-icon">⚡</div>
+                    <h3>High Voltage</h3>
+                    <p>150kW–500kW industrial systems. Choose a fixed package.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== HIGH VOLTAGE CONTENT ==================== -->
+        <!-- Same two-step pattern as Commercial/Residential: fill in the form
+             on the left, click Calculate, results appear on the right. Unlike
+             those flows, results are pre-defined fixed inverter-combo packages
+             per tier (150kW–500kW) rather than a dynamically-sized system —
+             see HV_SYSTEMS below — but panel count/installation/structure
+             cost still scale with how many inverter units each package uses. -->
+        <div class="content" id="hvContent" style="display:none;">
+            <!-- Form Section -->
+            <div class="form-section">
+                <a class="change-type-link" onclick="showTypeSelector()">← Change system type</a>
+                <h2>⚡ High Voltage System<span class="system-type-badge">150kW–500kW</span></h2>
+
+                <div id="hvFormMessage" class="message"></div>
+
+                <form id="hvForm" novalidate>
+                    <div class="form-group">
+                        <label for="hvName">Full Name *</label>
+                        <input type="text" id="hvName" name="hvName" required placeholder="John Doe">
+                    </div>
+
+                    <div class="input-row">
+                        <div class="form-group">
+                            <label for="hvEmail">Email Address *</label>
+                            <input type="email" id="hvEmail" name="hvEmail" required placeholder="john@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="hvPhone">Phone Number *</label>
+                            <input type="number" id="hvPhone" name="hvPhone" required placeholder="+92 300 1234567">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hvMonthlyBill">Monthly Electricity Bill <span class="unit">(PKR)</span> *</label>
+                        <input type="number" id="hvMonthlyBill" name="hvMonthlyBill" required placeholder="500000" min="0">
+                        <div class="help-text">Enter your average monthly electricity bill</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hvLoad">Total Load <span class="unit">(kW)</span> *</label>
+                        <input type="number" id="hvLoad" name="hvLoad" required placeholder="200" min="1" step="1">
+                        <div class="help-text">Enter your total connected/running load in kW — we'll recommend the nearest matching package(s).</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hvRoofArea">Available Roof/Ground Area <span class="unit">(sqft)</span> *</label>
+                        <input type="number" id="hvRoofArea" name="hvRoofArea" required placeholder="20000" min="0" step="1">
+                        <div class="help-text">Total usable area for panel installation in square feet</div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn-calculate">Calculate Package</button>
+                        <button type="reset" class="btn-reset">Clear Form</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Quote Section -->
+            <div class="quote-section" id="hvQuoteSection">
+                <h2>Your High Voltage Package</h2>
+
+                <!-- Placeholder shown before calculation -->
+                <div class="quote-placeholder" id="hvQuotePlaceholder">
+                    <div class="big-icon">⚡</div>
+                    <p>Fill in the form,<br>your recommended package will appear here.</p>
+                </div>
+
+                <!-- Actual results, shown after Calculate Package -->
+                <div class="quote-content" id="hvQuoteContent" style="display:none;">
+                    <div id="hvRecommendedNote" style="margin-bottom:16px;padding:12px 14px;border-radius:8px;background:#f0f4ff;color:#444;font-size:0.9em;"></div>
+
+                    <div id="hvTiersContainer"></div>
+
+                    <!-- Panel choice, styled like the Commercial/Residential product cards -->
+                    <div style="margin-bottom: 30px;">
+                        <h4 style="color: #333; margin-bottom: 15px; font-weight: 600;">Choose Solar Panel</h4>
+                        <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Changes the panel count, panel cost and installation cost for the package above</p>
+                        <div style="display: grid; gap: 10px;" id="hvPanelCards"></div>
+                    </div>
+
+                    <!-- Minimum <-> Average <-> Full PV, shown after the package/panel output -->
+                    <div class="panel-custom-section" style="display:block;">
+                        <h4>🔢 Minimum ↔ Average ↔ Full PV Panel Quantity</h4>
+                        <div class="calc-mode-toggle-row">
+                            <button type="button" class="calc-mode-btn" id="hvModeMinBtn" onclick="selectHVCalcMode('min')">🔻 Minimum PV</button>
+                            <button type="button" class="calc-mode-btn active" id="hvModeAvgBtn" onclick="selectHVCalcMode('avg')">📊 Average PV</button>
+                            <button type="button" class="calc-mode-btn" id="hvModeFullBtn" onclick="selectHVCalcMode('full')">🔋 Full PV</button>
+                        </div>
+                        <p style="color:#888;font-size:0.82em;margin-top:10px;">
+                            Each package's price = one inverter unit's own price, panel count &amp; installation cost, simply multiplied by how many units that combination uses.
+                        </p>
+                    </div>
+
+                    <div id="hvSummary" style="display:none;margin-top:28px;padding:20px;border:2px solid #4caf50;border-radius:10px;background:#f5fff6;">
+                        <h3 style="margin-bottom:12px;">Selected Package</h3>
+                        <div id="hvSummaryBody"></div>
+                        <div class="quote-actions" style="margin-top:16px;">
+                            <button type="button" class="btn-print" style="grid-column:1 / -1;" onclick="generateHVPDF()">📄 Get PDF</button>
+                            <button type="button" class="btn-whatsapp" onclick="sendHVToAdmin()">💬 Send to Admin</button>
+                            <button type="button" class="btn-whatsapp" onclick="sendHVWhatsApp()">📱 WhatsApp Myself</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1917,6 +2041,215 @@
             if (base) combo.price = base.price * combo.comboQty;
         });
 
+        // ==================== HIGH VOLTAGE FIXED SYSTEMS (150kW–500kW) ====================
+        // Separate from the dynamic Commercial/Residential calculator above.
+        // Each tier offers 1-3 pre-defined packages built from EXISTING
+        // PRODUCTS.inverters entries (by id) plus, where noted, fixed-price
+        // accessories (PCS/MPPT) that aren't in the main catalog. A package's
+        // price is unit qty × that inverter's CURRENT catalog price (read live
+        // off PRODUCTS.inverters, so it stays in sync with Google Sheet
+        // inventory overrides — same pattern as the existing 100kW combo,
+        // id 26 above) plus any fixed accessory prices.
+        //
+        // Inverter id reference used below:
+        //   19 = Nitrox 50kW Hybrid Inverter   21 = Nitrox 80kW Hybrid Inverter
+        //   25 = 125kW Hybrid Inverter (price currently a placeholder — see PRODUCTS.inverters)
+        //
+        // Note: 80kW×4 (id 21 ×4) appears as an option under the 300kW, 350kW
+        // AND 400kW tiers, and 125kW×3 (id 25 ×3) appears under both 350kW and
+        // 400kW — that's exactly what was specified; the same physical combo
+        // is being offered as a fit for more than one tier band.
+        const PCS_ACCESSORY_PRICE   = 1300000;  // Power Conversion System — fixed price per unit
+        const MPPT_ACCESSORY_PRICE  = 600000;   // MPPT unit — fixed price per unit
+
+        function hvInverterPrice(inverterId) {
+            const inv = PRODUCTS.inverters.find(p => p.id === inverterId);
+            return inv ? inv.price : 0;
+        }
+
+        function hvInverterName(inverterId) {
+            const inv = PRODUCTS.inverters.find(p => p.id === inverterId);
+            return inv ? inv.name : `Inverter #${inverterId}`;
+        }
+
+        const HV_SYSTEMS = [
+            {
+                tierKw: 150,
+                options: [
+                    { label: '80kW × 2', items: [ { type: 'inverter', id: 21, qty: 2 } ] },
+                    { label: '50kW × 3', items: [ { type: 'inverter', id: 19, qty: 3 } ] },
+                ]
+            },
+            {
+                tierKw: 200,
+                options: [
+                    { label: '80kW × 2 + 50kW × 1', items: [ { type: 'inverter', id: 21, qty: 2 }, { type: 'inverter', id: 19, qty: 1 } ] },
+                ]
+            },
+            {
+                tierKw: 250,
+                options: [
+                    { label: '125kW × 2 (Full Setup)', items: [ { type: 'inverter', id: 25, qty: 2 } ] },
+                    { label: '125kW × 1 + PCS + MPPT', items: [
+                        { type: 'inverter', id: 25, qty: 1 },
+                        { type: 'accessory', name: 'PCS (Power Conversion System)', price: PCS_ACCESSORY_PRICE, qty: 1 },
+                        { type: 'accessory', name: 'MPPT', price: MPPT_ACCESSORY_PRICE, qty: 1 },
+                    ] },
+                ]
+            },
+            {
+                tierKw: 300,
+                options: [
+                    { label: '80kW × 4', items: [ { type: 'inverter', id: 21, qty: 4 } ] },
+                ]
+            },
+            {
+                tierKw: 350,
+                options: [
+                    { label: '125kW × 3', items: [ { type: 'inverter', id: 25, qty: 3 } ] },
+                    { label: '50kW × 7', items: [ { type: 'inverter', id: 19, qty: 7 } ] },
+                    { label: '80kW × 4', items: [ { type: 'inverter', id: 21, qty: 4 } ] },
+                ]
+            },
+            {
+                tierKw: 400,
+                options: [
+                    { label: '125kW × 3', items: [ { type: 'inverter', id: 25, qty: 3 } ] },
+                    { label: '80kW × 4', items: [ { type: 'inverter', id: 21, qty: 4 } ] },
+                ]
+            },
+            {
+                tierKw: 500,
+                options: [
+                    { label: '125kW × 4', items: [ { type: 'inverter', id: 25, qty: 4 } ] },
+                ]
+            },
+        ];
+
+        // For one 'inverter' line item: works out panels/installation/elevated
+        // structure for a SINGLE unit of that inverter (using the same
+        // getPanelCounts/calculateInstallationPackageCost/
+        // calculateElevatedStructureCost logic the Commercial/Residential
+        // flow uses), then multiplies everything — panel count, panel cost,
+        // installation cost, elevated structure cost, AND the inverter's own
+        // price — by how many units (item.qty) this package uses.
+        function computeHVInverterLine(item, panel, calcMode) {
+            const inverter = PRODUCTS.inverters.find(p => p.id === item.id);
+            if (!inverter) {
+                return {
+                    kind: 'inverter', label: `Inverter #${item.id}`, qty: item.qty,
+                    inverterUnitPrice: 0, inverterCost: 0, isPlaceholder: false, isOutOfStock: false,
+                    perUnitPanelCount: 0, totalPanelCount: 0, panelCost: 0,
+                    installationCost: 0, elevatedStructureCost: 0, lineTotal: 0
+                };
+            }
+
+            const counts = getPanelCounts(inverter, panel);
+            const perUnitPanelCount = counts[calcMode].count; // 'min' | 'avg' | 'full', per ONE inverter unit
+            const totalPanelCount   = perUnitPanelCount * item.qty; // scaled by qty of inverters in this package
+            const panelWatts        = panel.capacity * 1000;
+
+            const inverterCost          = inverter.price * item.qty;
+            const panelCost             = Math.round(panel.pricePerPanel * totalPanelCount);
+            const installationCost      = calculateInstallationPackageCost(inverter, totalPanelCount * panelWatts);
+            const elevatedStructureCost = calculateElevatedStructureCost(panelWatts, totalPanelCount);
+            const lineTotal = inverterCost + panelCost + installationCost + elevatedStructureCost;
+
+            return {
+                kind: 'inverter', label: inverter.name, qty: item.qty,
+                inverterUnitPrice: inverter.price, inverterCost,
+                isPlaceholder: !!inverter.priceIsPlaceholder,
+                isOutOfStock: inverter.inStock === false, // set by the Google Sheet inventory feed, see loadInventoryFromSheet
+                perUnitPanelCount, totalPanelCount, panelCost,
+                installationCost, elevatedStructureCost, lineTotal
+            };
+        }
+
+        // Returns { total, hasPlaceholder, hasOutOfStock, lines }. `panel` is
+        // the currently selected PRODUCTS.panels entry; `calcMode` is
+        // 'min' | 'avg' | 'full' (window.hvCalcMode). Accessory items
+        // (PCS/MPPT) are flat qty×price — they don't carry their own
+        // panels/installation and aren't tracked in the inventory feed.
+        function computeHVOptionPrice(option, panel, calcMode) {
+            let total = 0;
+            let hasPlaceholder = false;
+            let hasOutOfStock = panel && panel.inStock === false; // panel stock also comes from the Google Sheet inventory feed
+            const lines = option.items.map(item => {
+                if (item.type === 'inverter') {
+                    const line = computeHVInverterLine(item, panel, calcMode);
+                    total += line.lineTotal;
+                    if (line.isPlaceholder) hasPlaceholder = true;
+                    if (line.isOutOfStock) hasOutOfStock = true;
+                    return line;
+                }
+                const lineTotal = item.price * item.qty;
+                total += lineTotal;
+                return { kind: 'accessory', label: item.name, unitPrice: item.price, qty: item.qty, lineTotal };
+            });
+            return { total, hasPlaceholder, hasOutOfStock, lines };
+        }
+
+        // Builds a full, detailed label straight from the live catalog —
+        // e.g. "125kW Hybrid Inverter × 2" or "125kW Hybrid Inverter × 1 +
+        // PCS (Power Conversion System) × 1 + MPPT × 1" — instead of the
+        // short hardcoded option.label, so the exact equipment is always
+        // spelled out on the card.
+        function buildHVOptionLabel(option) {
+            return option.items.map(item => {
+                if (item.type === 'inverter') {
+                    const inv = PRODUCTS.inverters.find(p => p.id === item.id);
+                    return `${inv ? inv.name : 'Inverter #' + item.id} × ${item.qty}`;
+                }
+                return `${item.name} × ${item.qty}`;
+            }).join(' + ');
+        }
+
+        // Total panel count for this option under EACH PV mode at once
+        // (not just the currently active window.hvCalcMode) — lets the UI
+        // show Minimum/Average/Full PV panel counts side by side without
+        // switching modes.
+        function computeHVOptionPanelCountsAllModes(option, panel) {
+            const totals = { min: 0, avg: 0, full: 0 };
+            option.items.forEach(item => {
+                if (item.type !== 'inverter') return;
+                const inv = PRODUCTS.inverters.find(p => p.id === item.id);
+                if (!inv) return;
+                const counts = getPanelCounts(inv, panel);
+                totals.min  += counts.min.count  * item.qty;
+                totals.avg  += counts.avg.count  * item.qty;
+                totals.full += counts.full.count * item.qty;
+            });
+            return totals;
+        }
+
+        // Rough area needed for a given panel count, using the same
+        // 60 sqft/kW elevated-mount convention as the Commercial/Residential
+        // flow (see HV_SQFT_PER_KW below).
+        function estimateHVAreaSqft(panelCount, panel) {
+            return panelCount * panel.capacity * HV_SQFT_PER_KW;
+        }
+
+        // Rolls the per-line figures from computeHVOptionPrice() up into one
+        // set of option-wide totals — panel count, panel cost, installation
+        // cost (wiring/DC earthing/DB box/misc) and elevated structure cost —
+        // so a combination with several inverter lines (e.g. 80kW×2 + 50kW×1)
+        // shows ONE combined figure for each, not one per line.
+        function computeHVOptionAggregates(priceInfo) {
+            let totalPanels = 0, panelCost = 0, installationCost = 0, elevatedStructureCost = 0, inverterCost = 0, accessoryCost = 0;
+            priceInfo.lines.forEach(l => {
+                if (l.kind === 'inverter') {
+                    totalPanels           += l.totalPanelCount;
+                    panelCost             += l.panelCost;
+                    installationCost      += l.installationCost;
+                    elevatedStructureCost += l.elevatedStructureCost;
+                    inverterCost          += l.inverterCost;
+                } else {
+                    accessoryCost += l.lineTotal;
+                }
+            });
+            return { totalPanels, panelCost, installationCost, elevatedStructureCost, inverterCost, accessoryCost };
+        }
+
         // ==================== DATASHEET PANEL-COUNT LOOKUP ====================
         // Sourced from the company's own inverter datasheet (panels.xlsx):
         //   "with full PV"  -> maximum panels the inverter's strings can carry (full)
@@ -2143,6 +2476,11 @@
                     window.quoteData.selectedBattery = null;
                     window.customPanelCount = null;
                     displayProductSelection();
+                }
+                if (window.hvMatchedTierKw) {
+                    renderHVPanelCards();
+                    renderHVMatchedOptions();
+                    updateHVSummary();
                 }
             } catch (err) {
                 console.warn('Live inventory fetch failed — using built-in catalog instead:', err);
@@ -4278,9 +4616,17 @@ _Sent via Solar Calculator_`;
             window.systemType = type;
 
             document.getElementById('typeSelector').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'grid';
             const marquee = document.getElementById('brandMarquee');
             if (marquee) marquee.style.display = 'none';
+
+            if (type === 'highvoltage') {
+                document.getElementById('mainContent').style.display = 'none';
+                document.getElementById('hvContent').style.display = 'grid';
+                return; // panel cards / PV mode / combos all render after Calculate Package
+            }
+
+            document.getElementById('hvContent').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'grid';
 
             const isCommercial = type === 'commercial';
             document.getElementById('commercialLoadGroup').style.display = isCommercial ? 'block' : 'none';
@@ -4296,6 +4642,7 @@ _Sent via Solar Calculator_`;
 
         function showTypeSelector() {
             document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('hvContent').style.display = 'none';
             document.getElementById('typeSelector').style.display = 'block';
             const marquee = document.getElementById('brandMarquee');
             if (marquee) marquee.style.display = 'block';
@@ -4310,7 +4657,752 @@ _Sent via Solar Calculator_`;
             if (backupInput) backupInput.value = '';
             const panelCustomSection = document.getElementById('panelCustomSection');
             if (panelCustomSection) panelCustomSection.style.display = 'none';
+
+            const hvForm = document.getElementById('hvForm');
+            if (hvForm) hvForm.reset();
+            resetHVQuote();
         }
+
+        // ==================== HIGH VOLTAGE: RENDER / SELECT / SUMMARY ====================
+        window.hvSelection     = null;   // { tierKw, optionIndex } of the currently chosen package
+        window.hvMatchedTierKw = null;   // the tier matched to the entered load — only ITS combos are shown
+        window.hvPanelId       = null;   // selected PRODUCTS.panels id — set on first render
+        window.hvCalcMode      = 'avg';  // 'min' | 'avg' | 'full' — which PV count column to use
+
+        function getHVSelectedPanel() {
+            if (window.hvPanelId === null) {
+                // Default to the highest-wattage panel that's actually in
+                // stock (per the Google Sheet inventory feed) — fewest
+                // panels/least labor for a large commercial-scale install,
+                // without defaulting to something that can't be sold.
+                const sorted = [...PRODUCTS.panels].sort((a, b) => b.capacity - a.capacity);
+                const inStock = sorted.filter(p => p.inStock !== false);
+                const pick = inStock.length ? inStock[0] : sorted[0];
+                window.hvPanelId = pick ? pick.id : null;
+            }
+            return PRODUCTS.panels.find(p => p.id === window.hvPanelId) || PRODUCTS.panels[0];
+        }
+
+        // Renders panel choice as cards — same visual language as
+        // createProductCard's panel cards in the Commercial/Residential flow
+        // (name, brand, capacity, radio-style selection, price) — but shows
+        // PKR per panel rather than a total, since the total panel count here
+        // depends on which combination the person picks above.
+        function renderHVPanelCards() {
+            const container = document.getElementById('hvPanelCards');
+            if (!container) return;
+
+            const selected = getHVSelectedPanel();
+            const sorted = [...PRODUCTS.panels].sort((a, b) => b.capacity - a.capacity);
+
+            container.innerHTML = sorted.map(product => {
+                const isSelected = selected && selected.id === product.id;
+                const outOfStock = product.inStock === false;
+                const bgColor = outOfStock ? '#fafafa' : (isSelected ? '#e8f5e9' : '#f9f9f9');
+                const borderColor = outOfStock ? '#e0e0e0' : (isSelected ? '#4caf50' : '#e0e0e0');
+                const borderWidth = (isSelected && !outOfStock) ? '3px' : '1px';
+                const stockBadge = outOfStock
+                    ? `<div style="display:inline-block;background:#c62828;color:#fff;font-size:0.7em;font-weight:700;padding:2px 8px;border-radius:12px;margin-top:6px;">⚠ OUT OF STOCK</div>`
+                    : '';
+                return `
+                    <div style="background:${bgColor};padding:15px;border-radius:8px;border:${borderWidth} solid ${borderColor};
+                                cursor:${outOfStock ? 'not-allowed' : 'pointer'};opacity:${outOfStock ? '0.65' : '1'};display:flex;flex-direction:column;gap:12px;"
+                         onclick="selectHVPanel(${product.id});"
+                         onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
+                         onmouseout="this.style.boxShadow='none'">
+                        <div style="display:flex;gap:12px;align-items:flex-start;">
+                            <input type="radio" id="hvpanel-${product.id}" name="hvPanel" value="${product.id}"
+                                   ${isSelected ? 'checked' : ''} ${outOfStock ? 'disabled' : ''}
+                                   style="margin-top:4px;cursor:pointer;min-width:20px;width:20px;height:20px;"
+                                   onclick="selectHVPanel(${product.id})">
+                            <div style="flex:1;">
+                                <h5 style="color:#333;margin:0 0 5px 0;word-break:break-word;">${product.name}</h5>
+                                <div style="font-size:0.85em;color:#666;line-height:1.4;">
+                                    <strong>Brand:</strong> ${product.brand} &nbsp;|&nbsp;
+                                    <strong>Capacity:</strong> ${product.capacity} kWp/panel
+                                </div>
+                                <div style="font-size:0.85em;color:#666;margin-top:5px;">${product.specs}</div>
+                                ${stockBadge}
+                            </div>
+                        </div>
+                        <div style="text-align:right;padding-top:10px;border-top:1px solid rgba(0,0,0,0.05);">
+                            <div style="font-size:0.8em;color:#999;margin-bottom:5px;">Price per panel</div>
+                            <div style="font-size:1.1em;font-weight:700;color:#4caf50;">PKR ${product.pricePerPanel.toLocaleString()}</div>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function selectHVPanel(id) {
+            const product = PRODUCTS.panels.find(p => p.id === id);
+            if (product && product.inStock === false) {
+                showMessageGlobal(`⚠️ ${product.name} is currently out of stock and can't be selected.`, 'error');
+                return;
+            }
+            window.hvPanelId = id;
+            renderHVPanelCards();
+            renderHVMatchedOptions();
+            updateHVSummary();
+        }
+
+        function selectHVCalcMode(mode) {
+            window.hvCalcMode = mode;
+            ['min', 'avg', 'full'].forEach(m => {
+                const btn = document.getElementById(`hvMode${m.charAt(0).toUpperCase()}${m.slice(1)}Btn`);
+                if (btn) btn.classList.toggle('active', m === mode);
+            });
+            renderHVMatchedOptions();
+            updateHVSummary();
+        }
+
+        // Renders ONLY the combinations belonging to window.hvMatchedTierKw —
+        // e.g. entering a 150kW load shows just the 150kW tier's options
+        // (80kW×2 or 50kW×3), not the full 150–500kW catalog. Each option's
+        // price is that combo's inverter(s) — one unit's own price, panel
+        // count and installation cost, simply multiplied by how many units
+        // the combo uses (see computeHVOptionPrice / computeHVInverterLine).
+        function renderHVMatchedOptions() {
+            const container = document.getElementById('hvTiersContainer');
+            if (!container) return;
+
+            if (!window.hvMatchedTierKw) {
+                container.innerHTML = '';
+                return;
+            }
+            const tier = HV_SYSTEMS.find(t => t.tierKw === window.hvMatchedTierKw);
+            if (!tier) { container.innerHTML = ''; return; }
+
+            const panel = getHVSelectedPanel();
+            const calcMode = window.hvCalcMode;
+            const modeLabel = { min: 'Minimum PV', avg: 'Average PV', full: 'Full PV' }[calcMode];
+            const roofAreaInput = parseFloat(document.getElementById('hvRoofArea').value);
+            const roofArea = Number.isFinite(roofAreaInput) ? roofAreaInput : null;
+
+            const optionsHTML = tier.options.map((option, idx) => {
+                const isSelected = window.hvSelection && window.hvSelection.tierKw === tier.tierKw && window.hvSelection.optionIndex === idx;
+                const priceInfo = computeHVOptionPrice(option, panel, calcMode);
+                const detailedLabel = buildHVOptionLabel(option);
+
+                const priceLine = priceInfo.hasPlaceholder
+                    ? `<div style="font-size:1em;font-weight:700;color:#e65100;">⚠️ Price pending</div>`
+                    : `<div style="font-size:1.4em;font-weight:800;color:#2e7d32;">PKR ${priceInfo.total.toLocaleString()}</div>`;
+
+                // Rolled-up cost breakdown for the whole combination, at the
+                // CURRENTLY priced (calcMode) panel count: how many panels,
+                // what the panels cost, the installation package cost
+                // (wiring/DC earthing/DB box/misc) and the elevated
+                // structure cost — each already summed across every
+                // inverter line this combination uses. (The Min/Avg/Full
+                // panel-count breakdown itself is shown only once, in the
+                // Selected Package summary below — not repeated on every card.)
+                const agg = computeHVOptionAggregates(priceInfo);
+                const costBreakdownLine = priceInfo.hasPlaceholder ? '' : `
+                    <div style="font-size:0.82em;color:#444;margin-top:10px;padding-top:8px;border-top:1px dashed #ddd;line-height:1.7;">
+                        🔢 Panels (${modeLabel}): <strong>${agg.totalPanels}</strong> × PKR ${panel.pricePerPanel.toLocaleString()} = PKR ${agg.panelCost.toLocaleString()}<br>
+                        🔌 Inverter(s): PKR ${agg.inverterCost.toLocaleString()}${agg.accessoryCost ? ` &nbsp;·&nbsp; Accessories: PKR ${agg.accessoryCost.toLocaleString()}` : ''}<br>
+                        🏗️ Installation (wiring, DC earthing, DB box &amp; misc): PKR ${agg.installationCost.toLocaleString()}<br>
+                        🏢 Elevated structure: PKR ${agg.elevatedStructureCost.toLocaleString()}
+                    </div>`;
+
+                // Roof/ground area this combination needs at the CURRENTLY
+                // priced panel count, compared against what was entered in
+                // the form (same 60 sqft/kW convention as Commercial/Residential).
+                const totalPanelsThisMode = agg.totalPanels;
+                const requiredArea = estimateHVAreaSqft(totalPanelsThisMode, panel);
+                let areaLine = '';
+                if (roofArea !== null) {
+                    const fits = requiredArea <= roofArea;
+                    areaLine = `
+                        <div style="font-size:0.82em;margin-top:4px;color:${fits ? '#2e7d32' : '#c62828'};">
+                            ${fits ? '✅' : '⚠️'} Needs ~${Math.round(requiredArea).toLocaleString()} sqft (you entered ${roofArea.toLocaleString()} sqft)
+                        </div>`;
+                }
+
+                const stockBadge = priceInfo.hasOutOfStock
+                    ? `<div style="position:absolute;top:-11px;left:16px;background:#c62828;color:#fff;font-size:0.72em;font-weight:700;padding:3px 10px;border-radius:20px;box-shadow:0 2px 6px rgba(0,0,0,0.15);">⚠ OUT OF STOCK</div>`
+                    : '';
+                const selectedBadge = isSelected
+                    ? `<div style="position:absolute;top:-11px;right:16px;background:#4caf50;color:#fff;font-size:0.72em;font-weight:700;padding:3px 10px;border-radius:20px;box-shadow:0 2px 6px rgba(0,0,0,0.15);">✓ SELECTED</div>`
+                    : '';
+
+                const outOfStock = priceInfo.hasOutOfStock;
+                return `
+                    <div onclick="selectHVOption(${tier.tierKw}, ${idx})"
+                         style="position:relative;cursor:${outOfStock ? 'not-allowed' : 'pointer'};
+                                opacity:${outOfStock ? '0.65' : '1'};
+                                border:${isSelected ? '3px' : '1.5px'} solid ${outOfStock ? '#e0a0a0' : (isSelected ? '#4caf50' : '#e0e0e0')};
+                                background:${outOfStock ? '#fdf3f3' : (isSelected ? 'linear-gradient(135deg,#e8f5e9 0%,#f1fdf2 100%)' : '#fafafa')};
+                                border-radius:12px;padding:22px 24px;margin-bottom:16px;
+                                box-shadow:${isSelected ? '0 6px 18px rgba(76,175,80,0.25)' : '0 2px 6px rgba(0,0,0,0.05)'};
+                                transition:all 0.2s;">
+                        ${stockBadge}${selectedBadge}
+                        <div style="font-weight:700;font-size:1.15em;margin-bottom:10px;color:#222;">${detailedLabel}</div>
+                        ${priceLine}
+                        ${costBreakdownLine}
+                        ${areaLine}
+                    </div>`;
+            }).join('');
+
+            container.innerHTML = `
+                <h4 style="margin-bottom:14px;color:#333;font-size:1.1em;">
+                    ${tier.tierKw}kW System — ${tier.options.length} combination${tier.options.length > 1 ? 's' : ''} available
+                </h4>
+                ${optionsHTML}`;
+        }
+
+        function selectHVOption(tierKw, optionIndex) {
+            const tier = HV_SYSTEMS.find(t => t.tierKw === tierKw);
+            const option = tier ? tier.options[optionIndex] : null;
+            if (option) {
+                const priceInfo = computeHVOptionPrice(option, getHVSelectedPanel(), window.hvCalcMode);
+                if (priceInfo.hasOutOfStock) {
+                    showMessageGlobal('One or more components in this combination are out of stock. Please choose a different combination.', 'error');
+                    return;
+                }
+            }
+            window.hvSelection = { tierKw, optionIndex };
+            renderHVMatchedOptions();
+            updateHVSummary();
+        }
+
+        // Builds the per-line breakdown HTML for the summary box: each
+        // inverter line shows its own qty, panel count (per-unit × qty),
+        // panel cost, installation cost and elevated structure cost — all
+        // already multiplied by that line's inverter quantity.
+        // Shows the Minimum / Average / Full PV panel counts as three clear,
+        // labeled boxes side by side (instead of one line of small text),
+        // with the mode currently used for pricing highlighted green.
+        function renderHVPanelCountBlock(panelCounts, activeMode) {
+            const modes = [
+                { key: 'min',  icon: '🔻', label: 'Minimum PV' },
+                { key: 'avg',  icon: '📊', label: 'Average PV' },
+                { key: 'full', icon: '🔋', label: 'Full PV' }
+            ];
+            const boxes = modes.map(m => {
+                const isActive = m.key === activeMode;
+                return `
+                    <div style="text-align:center;padding:8px 6px;border-radius:8px;
+                                background:${isActive ? '#e8f5e9' : '#f5f5f5'};
+                                border:1.5px solid ${isActive ? '#4caf50' : '#e0e0e0'};">
+                        <div style="font-size:0.72em;color:#666;">${m.icon} ${m.label}</div>
+                        <div style="font-size:1.05em;font-weight:800;color:${isActive ? '#2e7d32' : '#333'};">${panelCounts[m.key]} panels</div>
+                    </div>`;
+            }).join('');
+            return `
+                <div style="margin-top:10px;">
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">${boxes}</div>
+                    <div style="font-size:0.75em;color:#999;margin-top:4px;">The price shown uses the highlighted mode above.</div>
+                </div>`;
+        }
+
+        function renderHVLineHTML(line) {
+            if (line.kind === 'accessory') {
+                return `
+                    <div style="padding:8px 0;border-bottom:1px solid #e0e0e0;display:flex;justify-content:space-between;">
+                        <span>${line.label} × ${line.qty}</span>
+                        <span>PKR ${line.lineTotal.toLocaleString()}</span>
+                    </div>`;
+            }
+            const priceIsPending = line.isPlaceholder;
+            return `
+                <div style="padding:10px 0;border-bottom:1px solid #e0e0e0;">
+                    <div style="display:flex;justify-content:space-between;font-weight:600;">
+                        <span>${line.label} × ${line.qty}</span>
+                        <span>${priceIsPending ? '⚠️ Price pending' : 'PKR ' + line.lineTotal.toLocaleString()}</span>
+                    </div>
+                    <div style="font-size:0.82em;color:#666;margin-top:6px;line-height:1.6;padding-left:10px;">
+                        Inverter: PKR ${line.inverterUnitPrice.toLocaleString()} × ${line.qty} = ${priceIsPending ? '⚠️ pending' : 'PKR ' + line.inverterCost.toLocaleString()}<br>
+                        Panels: ${line.perUnitPanelCount} panels/unit × ${line.qty} = ${line.totalPanelCount} panels → PKR ${line.panelCost.toLocaleString()}<br>
+                        Installation (incl. wiring/DC earthing/DB/misc): PKR ${line.installationCost.toLocaleString()}<br>
+                        Elevated structure: PKR ${line.elevatedStructureCost.toLocaleString()}
+                    </div>
+                </div>`;
+        }
+
+        function updateHVSummary() {
+            const summaryBox = document.getElementById('hvSummary');
+            const summaryBody = document.getElementById('hvSummaryBody');
+            if (!window.hvSelection) {
+                summaryBox.style.display = 'none';
+                return;
+            }
+
+            const tier = HV_SYSTEMS.find(t => t.tierKw === window.hvSelection.tierKw);
+            const option = tier ? tier.options[window.hvSelection.optionIndex] : null;
+            if (!option) { summaryBox.style.display = 'none'; return; }
+
+            const panel = getHVSelectedPanel();
+            const priceInfo = computeHVOptionPrice(option, panel, window.hvCalcMode);
+            const modeLabel = { min: 'Minimum PV', avg: 'Average PV', full: 'Full PV' }[window.hvCalcMode];
+            const detailedLabel = buildHVOptionLabel(option);
+
+            const panelCounts = computeHVOptionPanelCountsAllModes(option, panel);
+            const totalPanelsThisMode = priceInfo.lines.reduce((sum, l) => sum + (l.totalPanelCount || 0), 0);
+            const requiredArea = estimateHVAreaSqft(totalPanelsThisMode, panel);
+            const roofAreaInput = parseFloat(document.getElementById('hvRoofArea').value);
+            let areaLine = '';
+            if (Number.isFinite(roofAreaInput)) {
+                const fits = requiredArea <= roofAreaInput;
+                areaLine = `<div style="margin-top:4px;color:${fits ? '#2e7d32' : '#c62828'};">${fits ? '✅' : '⚠️'} Needs ~${Math.round(requiredArea).toLocaleString()} sqft (you entered ${roofAreaInput.toLocaleString()} sqft)</div>`;
+            }
+            const stockLine = priceInfo.hasOutOfStock
+                ? `<div style="margin-top:6px;color:#c62828;font-weight:700;">⚠ One or more components in this combination are out of stock — sending/PDF is disabled until you pick an in-stock combination.</div>`
+                : '';
+
+            const linesHTML = priceInfo.lines.map(renderHVLineHTML).join('');
+
+            summaryBody.innerHTML = `
+                <div style="margin-bottom:10px;">
+                    <strong>${tier.tierKw}kW System</strong> — ${detailedLabel}<br>
+                    <span style="font-size:0.85em;color:#666;">Panel: ${panel.name} · Mode: ${modeLabel}</span>
+                    ${renderHVPanelCountBlock(panelCounts, window.hvCalcMode)}
+                    <div style="font-size:0.85em;">${areaLine}</div>
+                    ${stockLine}
+                </div>
+                ${linesHTML}
+                <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:1.2em;font-weight:700;color:#4caf50;">
+                    <span>Total</span>
+                    <span>${priceInfo.hasPlaceholder ? '⚠️ Price pending' : 'PKR ' + priceInfo.total.toLocaleString()}</span>
+                </div>`;
+
+            summaryBox.style.display = 'block';
+        }
+
+        // Gathers the current selection into one place, used by the WhatsApp
+        // senders and the PDF generator so they never drift out of sync.
+        function getHVSelectionSummary() {
+            if (!window.hvSelection) return null;
+            const tier = HV_SYSTEMS.find(t => t.tierKw === window.hvSelection.tierKw);
+            const option = tier ? tier.options[window.hvSelection.optionIndex] : null;
+            if (!option) return null;
+
+            const panel = getHVSelectedPanel();
+            const priceInfo = computeHVOptionPrice(option, panel, window.hvCalcMode);
+            const modeLabel = { min: 'Minimum PV', avg: 'Average PV', full: 'Full PV' }[window.hvCalcMode];
+            const detailedLabel = buildHVOptionLabel(option);
+            const panelCounts = computeHVOptionPanelCountsAllModes(option, panel);
+            const totalPanelsThisMode = priceInfo.lines.reduce((sum, l) => sum + (l.totalPanelCount || 0), 0);
+            const requiredArea = estimateHVAreaSqft(totalPanelsThisMode, panel);
+
+            return {
+                name: (document.getElementById('hvName').value || '').trim(),
+                email: (document.getElementById('hvEmail').value || '').trim(),
+                phoneRaw: (document.getElementById('hvPhone').value || '').trim(),
+                monthlyBill: document.getElementById('hvMonthlyBill').value,
+                load: document.getElementById('hvLoad').value,
+                roofArea: document.getElementById('hvRoofArea').value,
+                tier, option, panel, priceInfo, modeLabel,
+                label: detailedLabel, panelCounts, requiredArea
+            };
+        }
+
+        // Builds the WhatsApp message text. `forAdmin` swaps the greeting for
+        // an internal-lead framing but the package details are identical —
+        // both senders show exactly what the customer sees, nothing extra.
+        function buildHVWhatsAppMessage(sel, forAdmin) {
+            const itemsText = sel.priceInfo.lines.map(l => {
+                if (l.kind === 'accessory') {
+                    return `- ${l.label} × ${l.qty}: PKR ${l.lineTotal.toLocaleString()}`;
+                }
+                return `- ${l.label} × ${l.qty} (${l.totalPanelCount} panels, incl. installation & structure): ${l.isPlaceholder ? 'Price pending' : 'PKR ' + l.lineTotal.toLocaleString()}`;
+            }).join('\n');
+            const totalText = sel.priceInfo.hasPlaceholder ? 'Price pending (contains placeholder pricing)' : `PKR ${sel.priceInfo.total.toLocaleString()}`;
+
+            const header = forAdmin
+                ? `🌞 *NEW HIGH VOLTAGE LEAD — New Universal Solar & Traders*`
+                : `*High Voltage System Enquiry*`;
+
+            return `${header}
+Name: ${sel.name}
+Email: ${sel.email}
+Phone: ${sel.phoneRaw}
+Load: ${sel.load} kW
+Monthly Bill: PKR ${parseFloat(sel.monthlyBill || 0).toLocaleString()}
+Roof/Ground Area: ${sel.roofArea} sqft
+
+System: ${sel.tier.tierKw}kW — ${sel.label}
+Panel: ${sel.panel.name} (${sel.modeLabel})
+Panels — Min: ${sel.panelCounts.min} · Avg: ${sel.panelCounts.avg} · Full: ${sel.panelCounts.full}
+Estimated area needed: ~${Math.round(sel.requiredArea).toLocaleString()} sqft
+${itemsText}
+
+*Total: ${totalText}*
+
+We'll follow up shortly with the full breakdown. Thank you!
+_Sent via Solar Calculator_`;
+        }
+
+        // Sends the package to the CUSTOMER'S OWN WhatsApp — they tap Send
+        // themselves, same pattern as sendQuoteWhatsApp() for Commercial/Residential.
+        function sendHVWhatsApp() {
+            const sel = getHVSelectionSummary();
+            if (!sel) return;
+            if (!sel.name || !sel.phoneRaw) {
+                showMessageGlobal('Please enter your name and phone number.', 'error');
+                return;
+            }
+            if (sel.priceInfo.hasOutOfStock) {
+                showMessageGlobal('This combination has an out-of-stock component. Please pick a different combination first.', 'error');
+                return;
+            }
+
+            logToGoogleSheet({
+                event: 'HV WhatsApp Sent (Self)',
+                name: sel.name, email: sel.email, phone: sel.phoneRaw,
+                systemType: 'highvoltage',
+                monthlyBill: sel.monthlyBill, roofArea: sel.roofArea, monthlyLoad: sel.load,
+                tierKw: sel.tier.tierKw, combination: sel.label, panelName: sel.panel.name,
+                pvMode: sel.modeLabel, totalCost: sel.priceInfo.total,
+                date: new Date().toLocaleString()
+            });
+
+            const msg = buildHVWhatsAppMessage(sel, false);
+            const phone = normalizePhoneForWhatsApp(sel.phoneRaw);
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+            showMessageGlobal('Opening WhatsApp with your High Voltage package...', 'info');
+        }
+
+        // Sends the same package to the fixed ADMIN number — same pattern as
+        // sendToAdmin() for Commercial/Residential — and logs the selection
+        // to the Google Sheet (same webhook the Commercial/Residential flow uses).
+        function sendHVToAdmin() {
+            const sel = getHVSelectionSummary();
+            if (!sel) return;
+            if (!sel.name || !sel.phoneRaw) {
+                showMessageGlobal('Please enter your name and phone number.', 'error');
+                return;
+            }
+            if (sel.priceInfo.hasOutOfStock) {
+                showMessageGlobal('This combination has an out-of-stock component. Please pick a different combination first.', 'error');
+                return;
+            }
+
+            logToGoogleSheet({
+                event: 'HV Package Sent to Admin',
+                name: sel.name, email: sel.email, phone: sel.phoneRaw,
+                systemType: 'highvoltage',
+                monthlyBill: sel.monthlyBill, roofArea: sel.roofArea, monthlyLoad: sel.load,
+                tierKw: sel.tier.tierKw, combination: sel.label, panelName: sel.panel.name,
+                pvMode: sel.modeLabel, totalCost: sel.priceInfo.total,
+                date: new Date().toLocaleString()
+            });
+
+            const msg = buildHVWhatsAppMessage(sel, true);
+            const adminNumber = '923122555044';
+            window.open(`https://wa.me/${adminNumber}?text=${encodeURIComponent(msg)}`, '_blank');
+            showMessageGlobal('Opening WhatsApp to send this package to admin...', 'info');
+        }
+
+        // Prints/downloads a branded PDF of the selected High Voltage package
+        // — same print-window approach as generatePDF() for Commercial/Residential,
+        // reusing the same header, watermark and color scheme for consistency.
+        function generateHVPDF() {
+            const sel = getHVSelectionSummary();
+            if (!sel) {
+                showMessageGlobal('Please select a package first.', 'error');
+                return;
+            }
+            if (sel.priceInfo.hasOutOfStock) {
+                showMessageGlobal('This combination has an out-of-stock component. Please pick a different combination first.', 'error');
+                return;
+            }
+
+            logToGoogleSheet({
+                event: 'HV PDF Downloaded',
+                name: sel.name, email: sel.email, phone: sel.phoneRaw,
+                systemType: 'highvoltage',
+                monthlyBill: sel.monthlyBill, roofArea: sel.roofArea, monthlyLoad: sel.load,
+                tierKw: sel.tier.tierKw, combination: sel.label, panelName: sel.panel.name,
+                pvMode: sel.modeLabel, totalCost: sel.priceInfo.total,
+                date: new Date().toLocaleString()
+            });
+
+            const rowsHTML = sel.priceInfo.lines.map(l => {
+                if (l.kind === 'accessory') {
+                    return `
+    <tr>
+      <td>${l.label}<br><span style="font-weight:400;color:#777;font-size:0.9em;">A supporting part needed to safely connect the inverter to the equipment above it.</span></td>
+      <td class="num">${l.qty}</td>
+      <td class="num">${l.unitPrice.toLocaleString()}</td>
+      <td class="num">${l.lineTotal.toLocaleString()}</td>
+    </tr>`;
+                }
+                if (l.isPlaceholder) {
+                    return `
+    <tr>
+      <td>${l.label} × ${l.qty}<br><span style="font-weight:400;color:#777;font-size:0.9em;">Price for this unit is still pending — contact us to confirm.</span></td>
+      <td class="num">${l.qty}</td>
+      <td class="num">Pending</td>
+      <td class="num">Pending</td>
+    </tr>`;
+                }
+                // Every cost element of this inverter unit (or units, if qty > 1)
+                // gets its own priced row, so nothing is bundled into a single
+                // opaque total — the person can see exactly what they're paying
+                // for at each unit.
+                return `
+    <tr>
+      <td>${l.label} × ${l.qty}<br><span style="font-weight:400;color:#777;font-size:0.9em;">The main machine that turns the sun's power into electricity you can use.</span></td>
+      <td class="num">${l.qty}</td>
+      <td class="num">${l.inverterUnitPrice.toLocaleString()}</td>
+      <td class="num">${l.inverterCost.toLocaleString()}</td>
+    </tr>
+    <tr>
+      <td>&nbsp;&nbsp;└ Solar Panels for this unit<br><span style="font-weight:400;color:#777;font-size:0.9em;">The panels that catch sunlight and generate power — ${l.perUnitPanelCount} panels per unit × ${l.qty} unit(s) = ${l.totalPanelCount} panels.</span></td>
+      <td class="num">${l.totalPanelCount}</td>
+      <td class="num">${sel.panel.pricePerPanel.toLocaleString()}</td>
+      <td class="num">${l.panelCost.toLocaleString()}</td>
+    </tr>
+    <tr>
+      <td>&nbsp;&nbsp;└ Installation for this unit<br><span style="font-weight:400;color:#777;font-size:0.9em;">Wiring, DC earthing, DB box, and general setup labor for this unit's panels.</span></td>
+      <td class="num">—</td>
+      <td class="num">—</td>
+      <td class="num">${l.installationCost.toLocaleString()}</td>
+    </tr>
+    <tr>
+      <td>&nbsp;&nbsp;└ Elevated Structure for this unit<br><span style="font-weight:400;color:#777;font-size:0.9em;">The metal stand that lifts and angles this unit's panels toward the sun.</span></td>
+      <td class="num">—</td>
+      <td class="num">—</td>
+      <td class="num">${l.elevatedStructureCost.toLocaleString()}</td>
+    </tr>
+    <tr class="subtotal-row">
+      <td colspan="3" style="text-align:right;padding-right:10px;">Subtotal for ${l.label} × ${l.qty}</td>
+      <td class="num">${l.lineTotal.toLocaleString()}</td>
+    </tr>`;
+            }).join('');
+
+            const agg = computeHVOptionAggregates(sel.priceInfo);
+            const totalText = sel.priceInfo.hasPlaceholder ? 'PRICE PENDING' : `PKR ${sel.priceInfo.total.toLocaleString()}`;
+            const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+            const printWin = window.open('', '_blank', 'width=900,height=700');
+            if (!printWin) {
+                showMessageGlobal('Your browser blocked the PDF popup. Please allow popups for this site and try again.', 'error');
+                return;
+            }
+            printWin.document.write(`<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<title>High Voltage Quotation - ${sel.name}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  @page { size: A4; margin: 10mm 12mm; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #222; background: #fff; font-size: 14.5px; line-height:1.45; }
+  .top-bar { height: 10px; background: linear-gradient(90deg, #8b1a1a 0%, #b71c1c 55%, #d32f2f 100%); }
+  .page { padding: 14px 4px 4px; }
+  .header { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:10px; }
+  .header-left { display:flex; align-items:center; gap:12px; }
+  .header-left img { width:46px; height:46px; object-fit:contain; border-radius:50%; }
+  .company h1 { font-size:1.1em; color:#111; letter-spacing:0.2px; margin-bottom:2px; }
+  .company .tagline { color:#b71c1c; font-weight:700; font-size:0.8em; margin-bottom:4px; }
+  .company p { font-size:0.82em; color:#444; margin:0; }
+  .header-right { border:1.5px solid #b71c1c; border-radius:4px; min-width:200px; }
+  .header-right table { width:100%; border-collapse:collapse; }
+  .header-right td { padding:3px 8px; font-size:0.74em; border-bottom:1px solid #eecccc; }
+  .header-right tr:last-child td { border-bottom:none; }
+  .header-right .k { font-weight:700; color:#b71c1c; white-space:nowrap; }
+  .doc-title-strip { text-align:center; font-weight:700; font-size:0.95em; letter-spacing:0.4px; color:#b71c1c; margin:6px 0 10px; text-transform:uppercase; }
+  .customer-line { margin:6px 0 12px; display:inline-block; border:1.5px solid #b71c1c; border-radius:4px; padding:8px 14px; }
+  .customer-line table { border-collapse:collapse; }
+  .customer-line td { padding:2px 0; font-size:0.85em; font-weight:700; color:#111; white-space:nowrap; }
+  .customer-line td.k { color:#b71c1c; font-weight:700; padding-right:12px; }
+  .section-title { background:#b71c1c; color:#fff; font-weight:700; font-size:0.85em; padding:6px 10px; margin:14px 0 0; letter-spacing:0.2px; }
+  table.items { width:100%; border-collapse:collapse; margin-top:6px; }
+  table.items th { background:#b71c1c; color:#fff; padding:6px 8px; text-align:left; font-size:0.74em; font-weight:700; text-transform:uppercase; }
+  table.items th.num, table.items td.num { text-align:right; }
+  table.items td { padding:8px 8px; font-size:0.82em; border-bottom:1px solid #f3d9d9; font-weight:600; }
+  table.items tr:nth-child(even) td { background:#fbeaea; }
+  table.items tr.total-row td { background:#b71c1c !important; color:#fff; font-weight:700; font-size:1em; }
+  table.items tr.subtotal-row td { background:#f3d9d9 !important; color:#8b1a1a; font-weight:700; font-size:0.85em; }
+  .cost-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .cost-card { border:1.5px solid #e0e0e0; border-radius:6px; padding:8px 10px; }
+  .cost-card .label { font-size:0.72em; color:#777; }
+  .cost-card .value { font-size:1em; font-weight:800; color:#222; }
+  .thank-you { margin-top:18px; background:#b71c1c; color:#fff; text-align:center; font-weight:700; padding:8px; font-size:0.85em; letter-spacing:0.2px; }
+  @media print {
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  }
+</style>
+</head><body>
+<div class="top-bar"></div>
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <div class="company">
+        <h1>NEW UNIVERSAL SOLAR AND TRADERS</h1>
+        <div class="tagline">Authorized Supplier of Solar Inverters, Solar Panels &amp; Lithium Ion Batteries</div>
+        <p>📍 Qadeerzia Plaza, College Road, Rawalpindi</p>
+        <p>📞 0333-7592249</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <table>
+        <tr><td class="k">Date:</td><td>${dateStr}</td></tr>
+        <tr><td class="k">System:</td><td>High Voltage — ${sel.tier.tierKw}kW</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="doc-title-strip">High Voltage System Quotation — ${sel.label}</div>
+
+  <div class="customer-line">
+    <table>
+      <tr><td class="k">Name</td><td>${sel.name}</td></tr>
+      <tr><td class="k">Email</td><td>${sel.email}</td></tr>
+      <tr><td class="k">Phone</td><td>${sel.phoneRaw}</td></tr>
+      <tr><td class="k">Load</td><td>${sel.load} kW</td></tr>
+      <tr><td class="k">Monthly Bill</td><td>PKR ${parseFloat(sel.monthlyBill || 0).toLocaleString()}</td></tr>
+      <tr><td class="k">Roof/Ground Area</td><td>${sel.roofArea} sqft</td></tr>
+      <tr><td class="k">Panel</td><td>${sel.panel.name} (${sel.modeLabel})</td></tr>
+    </table>
+  </div>
+
+  <div class="section-title">Itemized Pricing</div>
+  <table class="items">
+    <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Price Each (PKR)</th><th class="num">Total (PKR)</th></tr></thead>
+    <tbody>
+      ${rowsHTML}
+      <tr class="total-row"><td colspan="3">GRAND TOTAL</td><td class="num">${totalText}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="section-title">Cost Summary</div>
+  <div class="cost-grid">
+    <div class="cost-card"><div class="label">Solar Panels (${agg.totalPanels} panels)</div><div class="value">PKR ${agg.panelCost.toLocaleString()}</div></div>
+    <div class="cost-card"><div class="label">Inverter(s)${agg.accessoryCost ? ' + Accessories' : ''}</div><div class="value">PKR ${(agg.inverterCost + agg.accessoryCost).toLocaleString()}</div></div>
+    <div class="cost-card"><div class="label">Installation (wiring, earthing, setup)</div><div class="value">PKR ${agg.installationCost.toLocaleString()}</div></div>
+    <div class="cost-card"><div class="label">Elevated Structure (panel stand)</div><div class="value">PKR ${agg.elevatedStructureCost.toLocaleString()}</div></div>
+  </div>
+
+  <div class="thank-you">Thank you for choosing New Universal Solar &amp; Traders!</div>
+</div>
+<script>window.onload = function(){ window.print(); }<\/script>
+</body></html>`);
+            printWin.document.close();
+        }
+
+        // Picks the smallest tier whose tierKw is >= the entered load (i.e.
+        // the cheapest package that still covers the requirement). If the
+        // load exceeds even the largest tier (500kW), falls back to 500kW
+        // and flags it as undersized for that load — same "closest
+        // sufficient, else largest available" idea used elsewhere in this
+        // file (see getSuitableProducts) rather than a fresh convention.
+        function recommendHVTier(loadKw) {
+            const sorted = [...HV_SYSTEMS].sort((a, b) => a.tierKw - b.tierKw);
+            const fit = sorted.find(t => t.tierKw >= loadKw);
+            if (fit) return { tier: fit, undersized: false };
+            return { tier: sorted[sorted.length - 1], undersized: true };
+        }
+
+        // Resets the High Voltage quote panel back to its pre-calculation
+        // state (placeholder shown, no tier/package selected).
+        function resetHVQuote() {
+            window.hvSelection = null;
+            window.hvMatchedTierKw = null;
+            window.hvQuoteData = null;
+            const placeholder = document.getElementById('hvQuotePlaceholder');
+            const content = document.getElementById('hvQuoteContent');
+            const summaryBox = document.getElementById('hvSummary');
+            const note = document.getElementById('hvRecommendedNote');
+            const tiers = document.getElementById('hvTiersContainer');
+            const panelCards = document.getElementById('hvPanelCards');
+            if (placeholder) placeholder.style.display = 'block';
+            if (content) content.style.display = 'none';
+            if (summaryBox) summaryBox.style.display = 'none';
+            if (note) note.innerHTML = '';
+            if (tiers) tiers.innerHTML = '';
+            if (panelCards) panelCards.innerHTML = '';
+        }
+
+        // Same 60 sqft/kW convention used by the Commercial/Residential
+        // "Elevated (Terrace Mounted)" sizing above — used here only to
+        // advise whether the entered roof/ground area looks sufficient for
+        // the recommended tier, not to gate or resize anything.
+        const HV_SQFT_PER_KW = 60;
+
+        // ==================== HIGH VOLTAGE: CALCULATE (form -> results) ====================
+        // Same two-step shape as calculateQuote() for Commercial/Residential:
+        // validate the form (name, email, phone, monthly bill, roof area,
+        // load), THEN find the nearest-fit tier and reveal ONLY that tier's
+        // combinations.
+        function calculateHVQuote() {
+            const name        = document.getElementById('hvName').value.trim();
+            const email       = document.getElementById('hvEmail').value.trim();
+            const phone       = document.getElementById('hvPhone').value.trim();
+            const monthlyBill = parseFloat(document.getElementById('hvMonthlyBill').value);
+            const load        = parseFloat(document.getElementById('hvLoad').value);
+            const roofArea    = parseFloat(document.getElementById('hvRoofArea').value);
+
+            if (!name || !email || !phone || !monthlyBill || !load || !roofArea) {
+                showMessage('Please fill in all fields', 'error', 'hvFormMessage');
+                return;
+            }
+            if (monthlyBill < 0 || roofArea < 0) {
+                showMessage('Values cannot be negative', 'error', 'hvFormMessage');
+                return;
+            }
+            if (load <= 0) {
+                showMessage('Total load must be greater than 0 kW.', 'error', 'hvFormMessage');
+                return;
+            }
+
+            // Same 10kW = 600 sqft (60 sqft/kW) rule the Commercial/Residential
+            // flow uses for its "Elevated (Terrace Mounted)" sizing — here it's
+            // a hard gate: if the entered load needs more roof/ground area than
+            // was entered, stop and tell them, rather than silently continuing.
+            const requiredAreaForLoad = load * HV_SQFT_PER_KW;
+            if (roofArea < requiredAreaForLoad) {
+                showMessage(
+                    `⚠️ Your ${load}kW load needs approximately ${requiredAreaForLoad.toLocaleString()} sqft of roof/ground area (10kW = 600 sqft), but only ${roofArea.toLocaleString()} sqft was entered. Please increase the available area or reduce the load.`,
+                    'error', 'hvFormMessage'
+                );
+                return;
+            }
+
+            window.hvQuoteData = { name, email, phone, monthlyBill, load, roofArea };
+
+            const { tier, undersized } = recommendHVTier(load);
+            window.hvMatchedTierKw = tier.tierKw;
+            window.hvSelection = { tierKw: tier.tierKw, optionIndex: 0 }; // pre-select the first combination; user can switch
+
+            const note = document.getElementById('hvRecommendedNote');
+            if (note) {
+                note.innerHTML = undersized
+                    ? `⚠️ Your ${load}kW load is above our largest package (${tier.tierKw}kW). Showing the ${tier.tierKw}kW combination(s) below — please contact us for a custom multi-unit quote.`
+                    : `✅ Based on your ${load}kW load, the nearest matching tier is <strong>${tier.tierKw}kW</strong> — showing all ${tier.options.length} combination${tier.options.length > 1 ? 's' : ''} for it below.`;
+            }
+
+            renderHVPanelCards();
+            renderHVMatchedOptions();
+            updateHVSummary();
+            document.getElementById('hvQuoteContent').style.display = 'block';
+
+            logToGoogleSheet({
+                event: 'HV Calculated',
+                name, email, phone,
+                systemType: 'highvoltage',
+                monthlyBill, roofArea, monthlyLoad: load,
+                recommendedTierKw: tier.tierKw,
+                date: new Date().toLocaleString()
+            });
+        }
+
+        document.getElementById('hvForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            calculateHVQuote();
+        });
+
+        document.getElementById('hvForm').addEventListener('reset', function() {
+            setTimeout(() => {
+                window.hvPanelId = null;
+                window.hvCalcMode = 'avg';
+                ['min', 'avg', 'full'].forEach(m => {
+                    const btn = document.getElementById(`hvMode${m.charAt(0).toUpperCase()}${m.slice(1)}Btn`);
+                    if (btn) btn.classList.toggle('active', m === 'avg');
+                });
+                resetHVQuote();
+            }, 0);
+        });
 
         // ==================== BRAND NAVBAR TYPING LOOP ====================
         // Types the full brand name into #brandTypingText one character at a
